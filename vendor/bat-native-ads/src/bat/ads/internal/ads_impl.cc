@@ -371,6 +371,11 @@ void AdsImpl::OnUnIdle() {
     return;
   }
 
+  if (idle_time > kMaximumIdleThresholdInSeconds) {
+    BLOG(INFO) << "Notification not made: Exceeded maximum idle time";
+    return;
+  }
+
   MaybeServeAdNotification(true);
 }
 
