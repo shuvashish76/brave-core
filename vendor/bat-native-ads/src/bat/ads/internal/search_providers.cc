@@ -7,7 +7,7 @@
 #include "bat/ads/internal/uri_helper.h"
 #include "third_party/re2/src/re2/re2.h"
 #include "url/gurl.h"
-
+#include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 
 namespace ads {
 
@@ -17,74 +17,62 @@ SearchProviders::~SearchProviders() = default;
 
 bool SearchProviders::IsSearchEngine(
     const std::string& url) {
-  const GURL visited_url = GURL(url);
-  if (!visited_url.is_valid()) {
+  const std::string tld_plus_1 = helper::Uri::GetDomainAndRegistry(url);
+  const auto iter = mymap.find(tld_plus_1);
+  if (iter == mymap.end()) {
     return false;
   }
 
-  bool is_a_search = false;
+  const SearchProviderInfo search_provider = iter->second;
 
-  for (const auto& search_provider : _search_providers) {
-    const GURL search_provider_hostname = GURL(search_provider.hostname);
-    if (!search_provider_hostname.is_valid()) {
-      continue;
-    }
-
-    if (search_provider.is_always_classed_as_a_search &&
-        visited_url.DomainIs(search_provider_hostname.host_piece())) {
-      is_a_search = true;
-      break;
-    }
-
-    size_t index = search_provider.search_template.find('{');
-    std::string substring = search_provider.search_template.substr(0, index);
-    size_t href_index = url.find(substring);
-
-    if (index != std::string::npos && href_index != std::string::npos) {
-      is_a_search = true;
-      break;
-    }
+  if (search_provider.is_always_classed_as_a_search) {
+    return true;
   }
 
-  return is_a_search;
+  if (!IsSearchEngineResultsPage(url)) {
+    return false;
+  }
+
+  return true;
+}
+
+bool SearchProviders::IsSearchEngineResultsPage(
+    const std::string& url) {
+  const std::string search_query_keywords = ExtractSearchQueryKeywords(url);
+  if (search_query_keywords.empty()) {
+    return false;
+  }
+
+  return true;
 }
 
 std::string SearchProviders::ExtractSearchQueryKeywords(
     const std::string& url) {
-  std::string search_query_keywords = "";
+  std::string search_query_keywords;
 
-  const GURL visited_url = GURL(url);
-  if (!visited_url.is_valid()) {
+  const std::string tld_plus_1 = helper::Uri::GetDomainAndRegistry(url);
+  const auto iter = mymap.find(tld_plus_1);
+  if (iter == mymap.end()) {
     return search_query_keywords;
   }
 
-  for (const auto& search_provider : _search_providers) {
-    GURL search_provider_hostname = GURL(search_provider.hostname);
-    if (!search_provider_hostname.is_valid()) {
-      continue;
+  const SearchProviderInfo search_provider = iter->second;
+
+  size_t index = search_provider.search_template.find('{');
+  std::string substring = search_provider.search_template.substr(0, index);
+  size_t href_index = url.find(substring);
+
+  if (index != std::string::npos && href_index != std::string::npos) {
+    // Checking if search template in as defined in |search_providers.h|
+    // is defined, e.g. |https://searx.me/?q={searchTerms}&categories=general|
+    // matches |?q={|
+    std::string key;
+    if (!RE2::PartialMatch(
+        search_provider.search_template, "\\?(.*?)\\={", &key)) {
+      return search_query_keywords;
     }
 
-    if (!visited_url.DomainIs(search_provider_hostname.host_piece())) {
-      continue;
-    }
-
-    size_t index = search_provider.search_template.find('{');
-    std::string substring = search_provider.search_template.substr(0, index);
-    size_t href_index = url.find(substring);
-
-    if (index != std::string::npos && href_index != std::string::npos) {
-      // Checking if search template in as defined in |search_providers.h|
-      // is defined, e.g. |https://searx.me/?q={searchTerms}&categories=general|
-      // matches |?q={|
-      std::string key;
-      if (!RE2::PartialMatch(
-          search_provider.search_template, "\\?(.*?)\\={", &key)) {
-        return search_query_keywords;
-      }
-
-      search_query_keywords = helper::Uri::GetValueForKeyInQuery(url, key);
-      break;
-    }
+    search_query_keywords = helper::Uri::GetValueForKeyInQuery(url, key);
   }
 
   return search_query_keywords;

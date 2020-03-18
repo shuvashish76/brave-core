@@ -26,6 +26,9 @@ class Uri {
   static bool MatchesDomainOrHost(
       const std::string& url1,
       const std::string& url2);
+
+  static std::string GetDomainAndRegistry(
+     const std::string& url);
 };
 
 }  // namespace helper

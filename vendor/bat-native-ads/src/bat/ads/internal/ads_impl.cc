@@ -700,9 +700,15 @@ void AdsImpl::OnPageLoaded(
     return;
   }
 
-  if (TestSearchState(url)) {
+  if (TestSearchState(url) {
     BLOG(INFO) << "Site visited " << url << ", URL is a search engine";
-    return;
+
+    if (!SearchProviders::IsSearchEngineResultsPage(url)) {
+      return;
+    }
+
+    BLOG(INFO) << "Site visited " << url << ", URL is a search engine results "
+        "page";
   }
 
   TestShoppingData(url);

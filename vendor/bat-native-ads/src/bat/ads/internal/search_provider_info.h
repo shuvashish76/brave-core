@@ -15,7 +15,6 @@ struct SearchProviderInfo {
   SearchProviderInfo();
   SearchProviderInfo(
       const std::string& name,
-      const std::string& hostname,
       const std::string& search_template,
       bool is_always_classed_as_a_search);
   SearchProviderInfo(
@@ -23,7 +22,6 @@ struct SearchProviderInfo {
   ~SearchProviderInfo();
 
   std::string name;
-  std::string hostname;
   std::string search_template;
   bool is_always_classed_as_a_search = false;
 };

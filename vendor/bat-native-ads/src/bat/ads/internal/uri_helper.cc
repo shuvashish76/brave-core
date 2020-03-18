@@ -74,4 +74,10 @@ bool Uri::MatchesDomainOrHost(
       net::registry_controlled_domains::INCLUDE_PRIVATE_REGISTRIES);
 }
 
+std::string Uri::GetDomainAndRegistry(
+     const std::string& url) {
+  return GetDomainAndRegistry(GURL(url),
+      net::registry_controlled_domains::INCLUDE_PRIVATE_REGISTRIES);
+}
+
 }  // namespace helper
