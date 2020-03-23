@@ -1,47 +1,66 @@
-/* Copyright (c) 2019 The Brave Authors. All rights reserved.
+/* Copyright (c) 2020 The Brave Authors. All rights reserved.
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "bat/ads/internal/frequency_capping/exclusion_rules/per_hour_frequency_cap.h"
-#include "bat/ads/internal/frequency_capping/frequency_capping.h"
-#include "bat/ads/internal/time.h"
-#include "bat/ads/internal/client.h"
-
+#include "base/strings/stringprintf.h"
+#include "base/time/time.h"
 #include "bat/ads/creative_ad_info.h"
+#include "bat/ads/internal/ads_impl.h"
+#include "bat/ads/internal/frequency_capping/exclusion_rules/per_hour_frequency_cap.h"
+#include "bat/ads/internal/frequency_capping/frequency_capping_util.h"
 
 namespace ads {
 
 PerHourFrequencyCap::PerHourFrequencyCap(
-    const FrequencyCapping* const frequency_capping)
-    : frequency_capping_(frequency_capping) {
+    const AdsImpl* const ads)
+    : ads_(ads) {
+  DCHECK(ads_);
 }
 
 PerHourFrequencyCap::~PerHourFrequencyCap() = default;
 
 bool PerHourFrequencyCap::ShouldExclude(
     const CreativeAdInfo& ad) {
-  if (!DoesAdRespectPerHourCap(ad)) {
-    std::ostringstream string_stream;
-    string_stream << "adUUID " << ad.creative_instance_id <<
-        " has exceeded the frequency capping for perHour";
-    last_message_ = string_stream.str();
-    return true;
+  if (DoesAdRespectCap(ad)) {
+    return false;
   }
-  return false;
+
+  last_message_ = base::StringPrintf("creativeInstanceId %s has exceeded the "
+      "frequency capping for perHour", ad.creative_instance_id.c_str());
+
+  return true;
 }
 
-std::string PerHourFrequencyCap::GetLastMessage() const {
+const std::string& PerHourFrequencyCap::get_last_message() const {
   return last_message_;
 }
 
-bool PerHourFrequencyCap::DoesAdRespectPerHourCap(
-    const CreativeAdInfo& ad) const {
-  auto ads_shown = frequency_capping_->GetAdsHistory(ad.creative_instance_id);
-  auto hour_window = base::Time::kSecondsPerHour;
+std::deque<uint64_t> PerHourFrequencyCap::GetHistory(
+    const std::string& creative_instance_id) const {
+  std::deque<uint64_t> filtered_history;
 
-  return frequency_capping_->DoesHistoryRespectCapForRollingTimeConstraint(
-      ads_shown, hour_window, 1);
+  const std::deque<AdHistory> history =
+      ads_->get_client()->GetAdsShownHistory();
+  for (const auto& ad : history) {
+    if (ad.ad_content.ad_action != ConfirmationType::kViewed ||
+        ad.ad_content.creative_instance_id != creative_instance_id) {
+      continue;
+    }
+
+    filtered_history.push_back(ad.timestamp_in_seconds);
+  }
+
+  return filtered_history;
+}
+
+bool PerHourFrequencyCap::DoesAdRespectCap(
+    const CreativeAdInfo& ad) const {
+  const std::deque<uint64_t> history = GetHistory(ad.creative_instance_id);
+
+  const uint64_t hour_window = base::Time::kSecondsPerHour;
+
+  return DoesHistoryRespectCapForRollingTimeConstraint(history, hour_window, 1);
 }
 
 }  // namespace ads

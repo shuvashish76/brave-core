@@ -3,42 +3,38 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#include <stdint.h>
 #include <memory>
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-#include "bat/ads/internal/frequency_capping/exclusion_rule.h"
-#include "bat/ads/internal/frequency_capping/frequency_capping.h"
-#include "bat/ads/internal/frequency_capping/exclusion_rules/per_day_frequency_cap.h"
-
-#include "bat/ads/internal/client_mock.h"
+#include "base/time/time.h"
+#include "bat/ads/creative_ad_info.h"
 #include "bat/ads/internal/ads_client_mock.h"
 #include "bat/ads/internal/ads_impl.h"
-#include "bat/ads/creative_ad_notification_info.h"
-#include "bat/ads/internal/time.h"
+#include "bat/ads/internal/frequency_capping/exclusion_rule.h"
+#include "bat/ads/internal/frequency_capping/exclusion_rules/per_day_frequency_cap.h"
 
-// npm run test -- brave_unit_tests --filter=Ads*
+// npm run test -- brave_unit_tests --filter=BraveAds*
 
 using std::placeholders::_1;
-using ::testing::_;
-using ::testing::Invoke;
-
-namespace {
-
-const char kTestCreativeSetId[] = "654f10df-fbc4-4a92-8d43-2edf73734a60";
-
-}  // namespace
 
 namespace ads {
 
-const uint64_t kSecondsPerDay = base::Time::kSecondsPerHour *
-    base::Time::kHoursPerDay;
+namespace {
+
+const char kCreativeSetId[] = "654f10df-fbc4-4a92-8d43-2edf73734a60";
+
+const uint64_t kSecondsPerDay =
+    base::Time::kSecondsPerHour * base::Time::kHoursPerDay;
+
+}  // namespace
 
 class BraveAdsPerDayFrequencyCapTest : public ::testing::Test {
  protected:
   BraveAdsPerDayFrequencyCapTest()
-  : mock_ads_client_(std::make_unique<MockAdsClient>()),
-    ads_(std::make_unique<AdsImpl>(mock_ads_client_.get())) {
+      : ads_client_mock_(std::make_unique<AdsClientMock>()),
+        ads_(std::make_unique<AdsImpl>(ads_client_mock_.get())) {
     // You can do set-up work for each test here
   }
 
@@ -57,11 +53,7 @@ class BraveAdsPerDayFrequencyCapTest : public ::testing::Test {
         &BraveAdsPerDayFrequencyCapTest::OnAdsImplInitialize, this, _1);
     ads_->Initialize(callback);
 
-    client_mock_ = std::make_unique<ClientMock>(ads_.get(),
-        mock_ads_client_.get());
-    frequency_capping_ = std::make_unique<FrequencyCapping>(client_mock_.get());
-    exclusion_rule_ = std::make_unique<PerDayFrequencyCap>(
-        frequency_capping_.get());
+    frequency_cap_ = std::make_unique<PerDayFrequencyCap>(ads_.get());
   }
 
   void OnAdsImplInitialize(const Result result) {
@@ -73,117 +65,127 @@ class BraveAdsPerDayFrequencyCapTest : public ::testing::Test {
     // destructor)
   }
 
-  std::unique_ptr<MockAdsClient> mock_ads_client_;
+  void GeneratePastHistory(
+      const std::string& creative_set_id,
+      const uint64_t time_offset_in_seconds,
+      const uint8_t count) {
+    uint64_t now_in_seconds = base::Time::Now().ToDoubleT();
+
+    for (uint8_t i = 0; i < count; i++) {
+      now_in_seconds -= time_offset_in_seconds;
+
+      ads_->get_client()->AppendTimestampToCreativeSetHistory(creative_set_id,
+          now_in_seconds);
+    }
+  }
+
+  std::unique_ptr<AdsClientMock> ads_client_mock_;
   std::unique_ptr<AdsImpl> ads_;
 
-  std::unique_ptr<ClientMock> client_mock_;
-  std::unique_ptr<FrequencyCapping> frequency_capping_;
-  std::unique_ptr<PerDayFrequencyCap> exclusion_rule_;
-  CreativeAdNotificationInfo ad_notification_info_;
+  std::unique_ptr<PerDayFrequencyCap> frequency_cap_;
 };
 
-TEST_F(BraveAdsPerDayFrequencyCapTest, AdAllowedWhenNoAds) {
+TEST_F(BraveAdsPerDayFrequencyCapTest,
+    AdAllowedWhenNoAds) {
   // Arrange
-  ad_notification_info_.creative_set_id = kTestCreativeSetId;
-  ad_notification_info_.per_day = 2;
+  CreativeAdInfo ad_info;
+  ad_info.creative_set_id = kCreativeSetId;
+  ad_info.per_day = 2;
 
   // Act
-  const bool is_ad_excluded =
-      exclusion_rule_->ShouldExclude(ad_notification_info_);
+  const bool should_exclude = frequency_cap_->ShouldExclude(ad_info);
 
   // Assert
-  EXPECT_FALSE(is_ad_excluded);
+  EXPECT_FALSE(should_exclude);
 }
 
-TEST_F(BraveAdsPerDayFrequencyCapTest, AdAllowedBelowDailyCap) {
+TEST_F(BraveAdsPerDayFrequencyCapTest,
+    AdAllowedBelowDailyCap) {
   // Arrange
-  ad_notification_info_.creative_set_id = kTestCreativeSetId;
-  ad_notification_info_.per_day = 2;
-  client_mock_->GeneratePastCreativeSetHistoryFromNow(
-      kTestCreativeSetId, 0, 1);
+  CreativeAdInfo ad_info;
+  ad_info.creative_set_id = kCreativeSetId;
+  ad_info.per_day = 2;
+
+  GeneratePastHistory(kCreativeSetId, 0, 1);
 
   // Act
-  const bool is_ad_excluded =
-      exclusion_rule_->ShouldExclude(ad_notification_info_);
+  const bool should_exclude = frequency_cap_->ShouldExclude(ad_info);
 
   // Assert
-  EXPECT_FALSE(is_ad_excluded);
+  EXPECT_FALSE(should_exclude);
 }
 
-TEST_F(BraveAdsPerDayFrequencyCapTest, AdAllowedWithAdOutsideDayWindow) {
+TEST_F(BraveAdsPerDayFrequencyCapTest,
+    AdAllowedWithAdOutsideDayWindow) {
   // Arrange
-  ad_notification_info_.creative_set_id = kTestCreativeSetId;
-  ad_notification_info_.per_day = 2;
+  CreativeAdInfo ad_info;
+  ad_info.creative_set_id = kCreativeSetId;
+  ad_info.per_day = 2;
 
-  client_mock_->GeneratePastCreativeSetHistoryFromNow(
-      kTestCreativeSetId, 0, 1);
-  client_mock_->GeneratePastCreativeSetHistoryFromNow(
-      kTestCreativeSetId, kSecondsPerDay, 1);
+  GeneratePastHistory(kCreativeSetId, 0, 1);
+  GeneratePastHistory(kCreativeSetId, kSecondsPerDay, 1);
 
   // Act
-  const bool is_ad_excluded =
-      exclusion_rule_->ShouldExclude(ad_notification_info_);
+  const bool should_exclude = frequency_cap_->ShouldExclude(ad_info);
 
   // Assert
-  EXPECT_FALSE(is_ad_excluded);
+  EXPECT_FALSE(should_exclude);
 }
 
-TEST_F(BraveAdsPerDayFrequencyCapTest, AdExcludedAboveDailyCapWithRecentAds) {
+TEST_F(BraveAdsPerDayFrequencyCapTest,
+    AdExcludedAboveDailyCapWithRecentAds) {
   // Arrange
-  ad_notification_info_.creative_set_id = kTestCreativeSetId;
-  ad_notification_info_.per_day = 2;
+  CreativeAdInfo ad_info;
+  ad_info.creative_set_id = kCreativeSetId;
+  ad_info.per_day = 2;
 
-  client_mock_->GeneratePastCreativeSetHistoryFromNow(
-      kTestCreativeSetId, 0, 2);
+  GeneratePastHistory(kCreativeSetId, 0, 2);
 
   // Act
-  const bool is_ad_excluded =
-      exclusion_rule_->ShouldExclude(ad_notification_info_);
+  const bool should_exclude = frequency_cap_->ShouldExclude(ad_info);
 
   // Assert
-  EXPECT_TRUE(is_ad_excluded);
-  EXPECT_EQ(exclusion_rule_->GetLastMessage(), "creativeSetId 654f10df-fbc4-4a92-8d43-2edf73734a60 has exceeded the frequency capping for perDay");  // NOLINT
+  EXPECT_TRUE(should_exclude);
+  EXPECT_EQ(frequency_cap_->get_last_message(), "creativeSetId 654f10df-fbc4-4a92-8d43-2edf73734a60 has exceeded the frequency capping for perDay");  // NOLINT
 }
 
 TEST_F(BraveAdsPerDayFrequencyCapTest,
     AdExcludedAboveDailyCapWithAdsJustWithinDay) {
   // Arrange
-  ad_notification_info_.creative_set_id = kTestCreativeSetId;
-  ad_notification_info_.per_day = 2;
+  CreativeAdInfo ad_info;
+  ad_info.creative_set_id = kCreativeSetId;
+  ad_info.per_day = 2;
 
-  client_mock_->GeneratePastCreativeSetHistoryFromNow(kTestCreativeSetId, 0, 1);
-  client_mock_->GeneratePastCreativeSetHistoryFromNow(kTestCreativeSetId,
-    kSecondsPerDay - 1, 1);
+  GeneratePastHistory(kCreativeSetId, 0, 1);
+  GeneratePastHistory(kCreativeSetId, kSecondsPerDay - 1, 1);
 
   // Act
-  const bool is_ad_excluded =
-      exclusion_rule_->ShouldExclude(ad_notification_info_);
+  const bool should_exclude = frequency_cap_->ShouldExclude(ad_info);
 
   // Assert
-  EXPECT_TRUE(is_ad_excluded);
-  EXPECT_EQ(exclusion_rule_->GetLastMessage(), "creativeSetId 654f10df-fbc4-4a92-8d43-2edf73734a60 has exceeded the frequency capping for perDay");  // NOLINT
+  EXPECT_TRUE(should_exclude);
+  EXPECT_EQ(frequency_cap_->get_last_message(), "creativeSetId 654f10df-fbc4-4a92-8d43-2edf73734a60 has exceeded the frequency capping for perDay");  // NOLINT
 }
 
-TEST_F(BraveAdsPerDayFrequencyCapTest, AdExcludedForIssue4207) {
+TEST_F(BraveAdsPerDayFrequencyCapTest,
+    AdExcludedForIssue4207) {
   // Arrange
-  uint64_t ads_per_day = 20;
+  const uint64_t ads_per_day = 20;
 
-  ad_notification_info_.creative_set_id = kTestCreativeSetId;
-  ad_notification_info_.per_day = ads_per_day;
+  CreativeAdInfo ad_info;
+  ad_info.creative_set_id = kCreativeSetId;
+  ad_info.per_day = ads_per_day;
 
-  uint64_t ads_per_hour = 5;
-  uint64_t ad_interval = base::Time::kSecondsPerHour / ads_per_hour;
-
-  client_mock_->GeneratePastCreativeSetHistoryFromNow(kTestCreativeSetId,
-      ad_interval, ads_per_day);
+  const uint64_t ads_per_hour = 5;
+  const uint64_t time_offset = base::Time::kSecondsPerHour / ads_per_hour;
+  GeneratePastHistory(kCreativeSetId, time_offset, ads_per_day);
 
   // Act
-  const bool is_ad_excluded =
-      exclusion_rule_->ShouldExclude(ad_notification_info_);
+  const bool should_exclude = frequency_cap_->ShouldExclude(ad_info);
 
   // Assert
-  EXPECT_TRUE(is_ad_excluded);
-  EXPECT_EQ(exclusion_rule_->GetLastMessage(), "creativeSetId 654f10df-fbc4-4a92-8d43-2edf73734a60 has exceeded the frequency capping for perDay");  // NOLINT
+  EXPECT_TRUE(should_exclude);
+  EXPECT_EQ(frequency_cap_->get_last_message(), "creativeSetId 654f10df-fbc4-4a92-8d43-2edf73734a60 has exceeded the frequency capping for perDay");  // NOLINT
 }
 
 }  // namespace ads

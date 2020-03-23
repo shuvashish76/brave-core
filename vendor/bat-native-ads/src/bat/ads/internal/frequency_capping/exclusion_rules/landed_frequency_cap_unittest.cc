@@ -9,13 +9,13 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #include "base/time/time.h"
-#include "bat/ads/creative_ad_info.h"
-#include "bat/ads/internal/ads_client_mock.h"
-#include "bat/ads/internal/ads_impl.h"
 #include "bat/ads/internal/frequency_capping/exclusion_rule.h"
 #include "bat/ads/internal/frequency_capping/exclusion_rules/total_max_frequency_cap.h"
+#include "bat/ads/internal/ads_client_mock.h"
+#include "bat/ads/internal/ads_impl.h"
+#include "bat/ads/creative_ad_info.h"
 
-// npm run test -- brave_unit_tests --filter=BraveAds*
+// npm run test -- brave_unit_tests --filter=Ads*
 
 using std::placeholders::_1;
 
@@ -31,8 +31,8 @@ const std::vector<std::string> kCreativeSetIds = {
 class BraveAdsTotalMaxFrequencyCapTest : public ::testing::Test {
  protected:
     BraveAdsTotalMaxFrequencyCapTest()
-        : ads_client_mock_(std::make_unique<AdsClientMock>()),
-          ads_(std::make_unique<AdsImpl>(ads_client_mock_.get())) {
+        : mock_ads_client_(std::make_unique<MockAdsClient>()),
+          ads_(std::make_unique<AdsImpl>(mock_ads_client_.get())) {
     // You can do set-up work for each test here
   }
 
@@ -77,7 +77,7 @@ class BraveAdsTotalMaxFrequencyCapTest : public ::testing::Test {
     }
   }
 
-  std::unique_ptr<AdsClientMock> ads_client_mock_;
+  std::unique_ptr<MockAdsClient> mock_ads_client_;
   std::unique_ptr<AdsImpl> ads_;
 
   std::unique_ptr<TotalMaxFrequencyCap> frequency_cap_;
@@ -113,11 +113,11 @@ TEST_F(BraveAdsTotalMaxFrequencyCapTest, AdAllowedWithMatchingAds) {
 
 TEST_F(BraveAdsTotalMaxFrequencyCapTest, AdAllowedWithNonMatchingAds) {
   // Arrange
-  GeneratePastHistory(kCreativeSetIds.at(0), base::Time::kSecondsPerHour, 5);
-
   CreativeAdInfo ad_info;
   ad_info.creative_set_id = kCreativeSetIds.at(1);
   ad_info.total_max = 2;
+
+  GeneratePastHistory(kCreativeSetIds.at(0), base::Time::kSecondsPerHour, 5);
 
   // Act
   const bool should_exclude = frequency_cap_->ShouldExclude(ad_info);

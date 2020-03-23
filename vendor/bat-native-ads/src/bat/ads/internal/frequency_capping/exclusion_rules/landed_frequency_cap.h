@@ -3,8 +3,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifndef BAT_ADS_INTERNAL_FREQUENCY_CAPPING_EXCLUSION_RULES_PER_DAY_FREQUENCY_CAP_H_
-#define BAT_ADS_INTERNAL_FREQUENCY_CAPPING_EXCLUSION_RULES_PER_DAY_FREQUENCY_CAP_H_
+#ifndef BAT_ADS_INTERNAL_FREQUENCY_CAPPING_EXCLUSION_RULES_LANDED_FREQUENCY_CAP_H_
+#define BAT_ADS_INTERNAL_FREQUENCY_CAPPING_EXCLUSION_RULES_LANDED_FREQUENCY_CAP_H_
 
 #include <stdint.h>
 #include <deque>
@@ -17,12 +17,12 @@ namespace ads {
 class AdsImpl;
 struct CreativeAdInfo;
 
-class PerDayFrequencyCap : public ExclusionRule {
+class LandedFrequencyCap : public ExclusionRule {
  public:
-  PerDayFrequencyCap(
+  LandedFrequencyCap(
       const AdsImpl* const ads);
 
-  ~PerDayFrequencyCap() override;
+  ~LandedFrequencyCap() override;
 
   bool ShouldExclude(
       const CreativeAdInfo& ad) override;
@@ -43,4 +43,4 @@ class PerDayFrequencyCap : public ExclusionRule {
 
 }  // namespace ads
 
-#endif  // BAT_ADS_INTERNAL_FREQUENCY_CAPPING_EXCLUSION_RULES_PER_DAY_FREQUENCY_CAP_H_
+#endif  // BAT_ADS_INTERNAL_FREQUENCY_CAPPING_EXCLUSION_RULES_LANDED_FREQUENCY_CAP_H_
