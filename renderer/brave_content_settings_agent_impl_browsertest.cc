@@ -18,6 +18,7 @@
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/test/browser_test_utils.h"
+#include "content/public/test/test_utils.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/http/http_request_headers.h"
 #include "net/test/embedded_test_server/http_request.h"
@@ -29,11 +30,21 @@ namespace {
 const char kIframeID[] = "test";
 
 const char kGetImageDataScript[] =
+    "var adder = (a, x) => a + x;"
     "var canvas = document.createElement('canvas');"
+    "canvas.width = 16;"
+    "canvas.height = 16;"
     "var ctx = canvas.getContext('2d');"
-    "ctx.rect(10, 10, 100, 100);"
+    "ctx.rect(0, 0, 16, 16);"
+    "ctx.fillStyle = 'black';"
     "ctx.fill();"
-    "domAutomationController.send(ctx.getImageData(0, 0, 10, 10).data.length);";
+    "ctx.rect(5, 10, 10, 4);"
+    "ctx.fillStyle = 'white';"
+    "ctx.fill();"
+    "domAutomationController.send(ctx.getImageData(0, 0, canvas.width, "
+    "canvas.height).data.reduce(adder));";
+
+const int kExpectedImageDataHash = 261040;
 
 const char kEmptyCookie[] = "";
 
@@ -48,10 +59,10 @@ const char kCookieScript[] =
 const char kReferrerScript[] =
     "domAutomationController.send(document.referrer);";
 
-}  // namespace
+} // namespace
 
 class BraveContentSettingsAgentImplBrowserTest : public InProcessBrowserTest {
- public:
+public:
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
 
@@ -85,7 +96,7 @@ class BraveContentSettingsAgentImplBrowserTest : public InProcessBrowserTest {
         ContentSettingsPattern::FromString("https://firstParty/*");
   }
 
-  void SaveReferrer(const net::test_server::HttpRequest& request) {
+  void SaveReferrer(const net::test_server::HttpRequest &request) {
     base::AutoLock auto_lock(last_referrers_lock_);
 
     // Replace "127.0.0.1:<port>" with the hostnames used in this test.
@@ -94,24 +105,24 @@ class BraveContentSettingsAgentImplBrowserTest : public InProcessBrowserTest {
     GURL::Replacements replace_host;
     if (pos != request.headers.end()) {
       replace_host.SetHostStr(pos->second);
-      replace_host.SetPortStr("");  // Host header includes the port already.
+      replace_host.SetPortStr(""); // Host header includes the port already.
     }
     GURL request_url = request.GetURL();
     request_url = request_url.ReplaceComponents(replace_host);
 
     pos = request.headers.find(net::HttpRequestHeaders::kReferer);
     if (pos == request.headers.end()) {
-      last_referrers_[request_url] = "";  // no referrer
+      last_referrers_[request_url] = ""; // no referrer
     } else {
       last_referrers_[request_url] = pos->second;
     }
   }
 
-  std::string GetLastReferrer(const GURL& url) const {
+  std::string GetLastReferrer(const GURL &url) const {
     base::AutoLock auto_lock(last_referrers_lock_);
     auto pos = last_referrers_.find(url);
     if (pos == last_referrers_.end()) {
-      return "(missing)";  // Fail test if we haven't seen this URL before.
+      return "(missing)"; // Fail test if we haven't seen this URL before.
     }
     return pos->second;
   }
@@ -121,9 +132,9 @@ class BraveContentSettingsAgentImplBrowserTest : public InProcessBrowserTest {
     content_client_.reset();
   }
 
-  const GURL& url() { return url_; }
-  const GURL& iframe_url() { return iframe_url_; }
-  const GURL& image_url() { return image_url_; }
+  const GURL &url() { return url_; }
+  const GURL &iframe_url() { return iframe_url_; }
+  const GURL &image_url() { return image_url_; }
 
   std::string create_image_script() {
     std::string s;
@@ -140,17 +151,17 @@ class BraveContentSettingsAgentImplBrowserTest : public InProcessBrowserTest {
 
   const GURL top_level_page_url() { return top_level_page_url_; }
 
-  const ContentSettingsPattern& top_level_page_pattern() {
+  const ContentSettingsPattern &top_level_page_pattern() {
     return top_level_page_pattern_;
   }
 
-  const ContentSettingsPattern& first_party_pattern() {
+  const ContentSettingsPattern &first_party_pattern() {
     return first_party_pattern_;
   }
 
-  const ContentSettingsPattern& iframe_pattern() { return iframe_pattern_; }
+  const ContentSettingsPattern &iframe_pattern() { return iframe_pattern_; }
 
-  HostContentSettingsMap* content_settings() {
+  HostContentSettingsMap *content_settings() {
     return HostContentSettingsMapFactory::GetForProfile(browser()->profile());
   }
 
@@ -228,16 +239,16 @@ class BraveContentSettingsAgentImplBrowserTest : public InProcessBrowserTest {
         browser()->profile(), ControlType::ALLOW, top_level_page_url());
   }
 
-  content::WebContents* contents() {
+  content::WebContents *contents() {
     return browser()->tab_strip_model()->GetActiveWebContents();
   }
 
-  content::RenderFrameHost* child_frame() {
+  content::RenderFrameHost *child_frame() {
     return ChildFrameAt(contents()->GetMainFrame(), 0);
   }
 
   template <typename T>
-  std::string ExecScriptGetStr(const std::string& script, T* frame) {
+  std::string ExecScriptGetStr(const std::string &script, T *frame) {
     std::string value;
     EXPECT_TRUE(ExecuteScriptAndExtractString(frame, script, &value));
     return value;
@@ -247,12 +258,12 @@ class BraveContentSettingsAgentImplBrowserTest : public InProcessBrowserTest {
     ui_test_utils::NavigateToURL(browser(), url());
     ASSERT_EQ(contents()->GetAllFrames().size(), 2u)
         << "Two frames (main + iframe) should be created.";
-    content::RenderFrameHost* main_frame = contents()->GetMainFrame();
+    content::RenderFrameHost *main_frame = contents()->GetMainFrame();
     EXPECT_EQ(main_frame->GetLastCommittedURL(), url());
   }
 
-  void NavigateToURLUntilLoadStop(const std::string& origin,
-                                  const std::string& path) {
+  void NavigateToURLUntilLoadStop(const std::string &origin,
+                                  const std::string &path) {
     ui_test_utils::NavigateToURL(browser(),
                                  embedded_test_server()->GetURL(origin, path));
   }
@@ -262,12 +273,11 @@ class BraveContentSettingsAgentImplBrowserTest : public InProcessBrowserTest {
     ASSERT_EQ(child_frame()->GetLastCommittedURL(), iframe_url());
   }
 
-  template <typename T>
-  void CheckCookie(T* frame, base::StringPiece cookie) {
+  template <typename T> void CheckCookie(T *frame, base::StringPiece cookie) {
     EXPECT_EQ(ExecScriptGetStr(kCookieScript, frame), cookie);
   }
 
- private:
+private:
   GURL url_;
   GURL iframe_url_;
   GURL image_url_;
@@ -284,72 +294,21 @@ class BraveContentSettingsAgentImplBrowserTest : public InProcessBrowserTest {
 };
 
 IN_PROC_BROWSER_TEST_F(BraveContentSettingsAgentImplBrowserTest,
-                       Block3PFPGetImageData) {
-  Block3PFingerprinting();
-
-  ContentSettingsForOneType fp_settings;
-  content_settings()->GetSettingsForOneType(ContentSettingsType::PLUGINS,
-                                            brave_shields::kFingerprinting,
-                                            &fp_settings);
-  EXPECT_EQ(fp_settings.size(), 2u);
-
+                       FarbleGetImageData) {
   NavigateToPageWithIframe();
 
-  int bufLen = -1;
+  int hash = -1;
   EXPECT_TRUE(
-      ExecuteScriptAndExtractInt(contents(), kGetImageDataScript, &bufLen));
-  EXPECT_EQ(400, bufLen);
+      ExecuteScriptAndExtractInt(contents(), kGetImageDataScript, &hash));
+  EXPECT_EQ(kExpectedImageDataHash, hash);
 
+  // The iframe should have the same result as the top frame because farbling is
+  // based on the top frame's session token.
+  hash = -1;
   NavigateIframe();
   EXPECT_TRUE(
-      ExecuteScriptAndExtractInt(child_frame(), kGetImageDataScript, &bufLen));
-  EXPECT_EQ(0, bufLen);
-}
-
-IN_PROC_BROWSER_TEST_F(BraveContentSettingsAgentImplBrowserTest,
-                       BlockFPGetImageData) {
-  BlockFingerprinting();
-
-  ContentSettingsForOneType fp_settings;
-  content_settings()->GetSettingsForOneType(ContentSettingsType::PLUGINS,
-                                            brave_shields::kFingerprinting,
-                                            &fp_settings);
-  EXPECT_EQ(fp_settings.size(), 2u);
-
-  NavigateToPageWithIframe();
-
-  int bufLen = -1;
-  EXPECT_TRUE(
-      ExecuteScriptAndExtractInt(contents(), kGetImageDataScript, &bufLen));
-  EXPECT_EQ(0, bufLen);
-
-  NavigateIframe();
-  EXPECT_TRUE(
-      ExecuteScriptAndExtractInt(child_frame(), kGetImageDataScript, &bufLen));
-  EXPECT_EQ(0, bufLen);
-}
-
-IN_PROC_BROWSER_TEST_F(BraveContentSettingsAgentImplBrowserTest,
-                       AllowFPGetImageData) {
-  AllowFingerprinting();
-
-  ContentSettingsForOneType fp_settings;
-  content_settings()->GetSettingsForOneType(ContentSettingsType::PLUGINS,
-                                            brave_shields::kFingerprinting,
-                                            &fp_settings);
-  EXPECT_EQ(fp_settings.size(), 2u);
-
-  NavigateToPageWithIframe();
-
-  int bufLen = -1;
-  EXPECT_TRUE(
-      ExecuteScriptAndExtractInt(contents(), kGetImageDataScript, &bufLen));
-  EXPECT_EQ(400, bufLen);
-
-  NavigateIframe();
-  EXPECT_TRUE(
-      ExecuteScriptAndExtractInt(child_frame(), kGetImageDataScript, &bufLen));
-  EXPECT_EQ(400, bufLen);
+      ExecuteScriptAndExtractInt(child_frame(), kGetImageDataScript, &hash));
+  EXPECT_EQ(kExpectedImageDataHash, hash);
 }
 
 IN_PROC_BROWSER_TEST_F(BraveContentSettingsAgentImplBrowserTest,
@@ -488,7 +447,7 @@ IN_PROC_BROWSER_TEST_F(BraveContentSettingsAgentImplBrowserTest, AllowCookies) {
 IN_PROC_BROWSER_TEST_F(BraveContentSettingsAgentImplBrowserTest,
                        ChromiumCookieBlockOverridesBraveAllowCookiesTopLevel) {
   AllowCookies();
-  HostContentSettingsMap* content_settings =
+  HostContentSettingsMap *content_settings =
       HostContentSettingsMapFactory::GetForProfile(browser()->profile());
   content_settings->SetContentSettingCustomScope(
       top_level_page_pattern(), ContentSettingsPattern::Wildcard(),
@@ -504,7 +463,7 @@ IN_PROC_BROWSER_TEST_F(BraveContentSettingsAgentImplBrowserTest,
 IN_PROC_BROWSER_TEST_F(BraveContentSettingsAgentImplBrowserTest,
                        ChromiumCookieBlockOverridesBraveAllowCookiesIframe) {
   AllowCookies();
-  HostContentSettingsMap* content_settings =
+  HostContentSettingsMap *content_settings =
       HostContentSettingsMapFactory::GetForProfile(browser()->profile());
   content_settings->SetContentSettingCustomScope(
       iframe_pattern(), ContentSettingsPattern::Wildcard(),
