@@ -3,8 +3,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifndef BAT_ADS_INTERNAL_FREQUENCY_CAPPING_EXCLUSION_RULES_LANDED_FREQUENCY_CAP_H_
-#define BAT_ADS_INTERNAL_FREQUENCY_CAPPING_EXCLUSION_RULES_LANDED_FREQUENCY_CAP_H_
+#ifndef BAT_ADS_INTERNAL_FREQUENCY_CAPPING_EXCLUSION_RULES_LANDED_FREQUENCY_CAP_H_  // NOLINT
+#define BAT_ADS_INTERNAL_FREQUENCY_CAPPING_EXCLUSION_RULES_LANDED_FREQUENCY_CAP_H_  // NOLINT
 
 #include <stdint.h>
 #include <deque>
@@ -35,7 +35,7 @@ class LandedFrequencyCap : public ExclusionRule {
   std::string last_message_;
 
   std::deque<uint64_t> GetHistory(
-      const std::string& creative_set_id) const;
+      const std::string& campaign_id) const;
 
   bool DoesAdRespectCap(
       const CreativeAdInfo& ad) const;
@@ -43,4 +43,5 @@ class LandedFrequencyCap : public ExclusionRule {
 
 }  // namespace ads
 
-#endif  // BAT_ADS_INTERNAL_FREQUENCY_CAPPING_EXCLUSION_RULES_LANDED_FREQUENCY_CAP_H_
+
+#endif  // BAT_ADS_INTERNAL_FREQUENCY_CAPPING_EXCLUSION_RULES_LANDED_FREQUENCY_CAP_H_  // NOLINT

@@ -3,10 +3,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "bat/ads/internal/frequency_capping/exclusion_rules/landed_frequency_cap.h"
-#include "bat/ads/internal/ads_impl.h"
-#include "bat/ads/creative_ad_info.h"
 #include "base/strings/stringprintf.h"
+#include "base/time/time.h"
+#include "bat/ads/creative_ad_info.h"
+#include "bat/ads/internal/ads_impl.h"
+#include "bat/ads/internal/frequency_capping/exclusion_rules/landed_frequency_cap.h"
+#include "bat/ads/internal/frequency_capping/frequency_capping_util.h"
 
 namespace ads {
 
@@ -24,38 +26,42 @@ bool LandedFrequencyCap::ShouldExclude(
     return false;
   }
 
-  last_message_ = base::StringPrintf("creativeSetId %s has exceeded the "
-      "frequency capping for landed", ad.creative_set_id);
+  last_message_ = base::StringPrintf("campaignId %s has exceeded the frequency "
+      "capping for landed", ad.campaign_id.c_str());
 
   return true;
 }
 
-const std::string& TotalMaxFrequencyCap::get_last_message() const {
+const std::string& LandedFrequencyCap::get_last_message() const {
   return last_message_;
 }
 
-std::deque<uint64_t> TotalMaxFrequencyCap::GetHistory(
-    const std::string& creative_set_id) const {
+std::deque<uint64_t> LandedFrequencyCap::GetHistory(
+    const std::string& campaign_id) const {
   std::deque<uint64_t> filtered_history;
 
-  const std::deque<uint64_t> history =
-      ads_->get_client()->GetCreativeSetHistory();
-  if (history.find(creative_set_id) != history.end()) {
-    filtered_history = history.at(creative_set_id);
+  const std::deque<AdHistory> history =
+      ads_->get_client()->GetAdsShownHistory();
+
+  for (const auto& ad : history) {
+    if (ad.ad_content.campaign_id != campaign_id ||
+        ad.ad_content.ad_action != ConfirmationType::kLanded) {
+      continue;
+    }
+
+    filtered_history.push_back(ad.timestamp_in_seconds);
   }
 
   return filtered_history;
 }
 
-bool TotalMaxFrequencyCap::DoesAdRespectCap(
+bool LandedFrequencyCap::DoesAdRespectCap(
     const CreativeAdInfo& ad) const {
-  const std::deque<uint64_t> history = GetHistory(ad.creative_set_id);
+  const std::deque<uint64_t> history = GetHistory(ad.campaign_id);
 
-  if (history.size() >= ad.total_max) {
-    return false;
-  }
+  const uint64_t hour_window = 48 * base::Time::kSecondsPerHour;
 
-  return true;
+  return DoesHistoryRespectCapForRollingTimeConstraint(history, hour_window, 1);
 }
 
 }  // namespace ads

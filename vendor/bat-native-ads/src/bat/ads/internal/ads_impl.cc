@@ -35,6 +35,8 @@
 #include "bat/ads/internal/frequency_capping/exclusion_rules/per_hour_frequency_cap.h"
 #include "bat/ads/internal/frequency_capping/exclusion_rules/per_day_frequency_cap.h"
 #include "bat/ads/internal/frequency_capping/exclusion_rules/daily_cap_frequency_cap.h"
+#include "bat/ads/internal/frequency_capping/exclusion_rules/dismissed_frequency_cap.h"
+#include "bat/ads/internal/frequency_capping/exclusion_rules/landed_frequency_cap.h"
 #include "bat/ads/internal/frequency_capping/exclusion_rules/total_max_frequency_cap.h"
 #include "bat/ads/internal/frequency_capping/permission_rules/minimum_wait_time_frequency_cap.h"
 #include "bat/ads/internal/frequency_capping/permission_rules/ads_per_day_frequency_cap.h"
@@ -1248,6 +1250,14 @@ std::vector<std::unique_ptr<ExclusionRule>>
       std::make_unique<DailyCapFrequencyCap>(this);
   exclusion_rules.push_back(std::move(daily_cap_frequency_cap));
 
+  std::unique_ptr<ExclusionRule> dismissed_frequency_cap =
+      std::make_unique<DismissedFrequencyCap>(this);
+  exclusion_rules.push_back(std::move(dismissed_frequency_cap));
+
+  std::unique_ptr<ExclusionRule> landed_frequency_cap =
+      std::make_unique<LandedFrequencyCap>(this);
+  exclusion_rules.push_back(std::move(landed_frequency_cap));
+
   std::unique_ptr<ExclusionRule> per_day_frequency_cap =
       std::make_unique<PerDayFrequencyCap>(this);
   exclusion_rules.push_back(std::move(per_day_frequency_cap));
@@ -1819,6 +1829,7 @@ void AdsImpl::AppendAdNotificationToHistory(
   ad_history.parent_uuid = info.parent_uuid;
   ad_history.ad_content.creative_instance_id = info.creative_instance_id;
   ad_history.ad_content.creative_set_id = info.creative_set_id;
+  ad_history.ad_content.campaign_id = info.campaign_id;
   ad_history.ad_content.brand = info.title;
   ad_history.ad_content.brand_info = info.body;
   ad_history.ad_content.brand_display_url = GetDisplayUrl(info.target_url);
