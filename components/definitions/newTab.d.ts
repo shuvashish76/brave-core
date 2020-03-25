@@ -117,6 +117,7 @@ declare namespace NewTab {
     initialAmount: string
     initialAsset: string
     userTLDAutoSet: boolean
+    binanceSupported: boolean
   }
 
   export type BinanceTLD = 'us' | 'com'

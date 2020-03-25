@@ -60,7 +60,8 @@ const defaultState: NewTab.State = {
     initialFiat: 'USD',
     initialAmount: '',
     initialAsset: 'BTC',
-    userTLDAutoSet: false
+    userTLDAutoSet: false,
+    binanceSupported: false
   }
 }
 

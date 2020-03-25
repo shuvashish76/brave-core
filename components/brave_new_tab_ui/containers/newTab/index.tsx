@@ -197,7 +197,12 @@ class NewTabPage extends React.Component<Props, State> {
   }
 
   toggleShowCrypto = () => {
-    const { currentStackWidget } = this.props.newTabData
+    const { currentStackWidget, binanceState, showRewards } = this.props.newTabData
+
+    if (!binanceState.binanceSupported) {
+      this.props.saveShowRewards(!showRewards)
+      return
+    }
 
     if (currentStackWidget === 'rewards') {
       this.toggleShowRewards()
@@ -391,7 +396,7 @@ class NewTabPage extends React.Component<Props, State> {
     const { newTabData } = this.props
     const { binanceState, showBinance } = newTabData
 
-    if (!showBinance) {
+    if (!showBinance || !binanceState.binanceSupported) {
       return null
     }
 
@@ -413,6 +418,7 @@ class NewTabPage extends React.Component<Props, State> {
   render () {
     const { newTabData, actions } = this.props
     const { showSettingsMenu } = this.state
+    const { binanceState } = newTabData
 
     if (!newTabData) {
       return null
@@ -534,6 +540,7 @@ class NewTabPage extends React.Component<Props, State> {
               allowBrandedWallpaperUI={newTabData.featureFlagBraveNTPBrandedWallpaper}
               toggleShowRewards={this.toggleShowRewards}
               toggleShowBinance={this.toggleShowBinance}
+              binanceSupported={binanceState.binanceSupported}
             />
             </Page.FooterContent>
           </Page.Footer>
