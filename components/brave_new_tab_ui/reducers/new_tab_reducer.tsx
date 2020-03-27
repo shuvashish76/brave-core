@@ -52,6 +52,41 @@ export const newTabReducer: Reducer<NewTab.State | undefined> = (state: NewTab.S
         topSites: initialDataPayload.topSites,
         brandedWallpaperData: initialDataPayload.brandedWallpaperData
       }
+      if (state.brandedWallpaperData && !state.brandedWallpaperData.isSponsored) {
+        // Update feature flag if this is super referral wallpaper.
+        state = {
+          ...state,
+          featureFlagBraveNTPSponsoredImagesWallpaper: true
+        }
+      }
+
+      // Handling default top sites data. They will start as pinned tab.
+      if (initialDataPayload.defaultTopSites) {
+        // Insert pinned tab data only once at first ntp run.
+        // They will not be inserted again into pinned tab data implicitly
+        // if user explicitly unpins it.
+        let pinnedTopSites: NewTab.Site[] = state.pinnedTopSites.slice()
+        if (!storage.isDefaultTopSitesApplied()) {
+          let index = 0
+          initialDataPayload.defaultTopSites.forEach((site: NewTab.Site) => {
+            const defaultTopSite: NewTab.Site = site
+            defaultTopSite.pinned = true
+            defaultTopSite.index = index++
+            pinnedTopSites.push(defaultTopSite)
+          })
+
+          // We will not insert site data into pinnedTopSites anymore.
+          storage.setDefaultTopSitesApplied()
+        }
+        // Always add default top sites data into state.topSites because it's
+        // predefined default top sites. They will be visible always at the start of
+        // topsite tiles unless user explicitly removes it.
+        state = {
+          ...state,
+          topSites: [...initialDataPayload.defaultTopSites, ...state.topSites],
+          pinnedTopSites
+        }
+      }
       // TODO(petemill): only get backgroundImage if no sponsored background this time.
       // ...We would also have to set the value at the action
       // the branded wallpaper is turned off. Since this is a cheap string API

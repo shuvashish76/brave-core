@@ -6,11 +6,12 @@
 import { debounce } from '../common/debounce'
 
 const keyName = 'new-tab-data'
+const defaultTopSitesAppliedKeyName = 'default-top-sites'
 
 const defaultState: NewTab.State = {
   initialDataLoaded: false,
   textDirection: window.loadTimeData.getString('textdirection'),
-  featureFlagBraveNTPBrandedWallpaper: window.loadTimeData.getBoolean('featureFlagBraveNTPBrandedWallpaper'),
+  featureFlagBraveNTPSponsoredImagesWallpaper: window.loadTimeData.getBoolean('featureFlagBraveNTPSponsoredImagesWallpaper'),
   showBackgroundImage: false,
   showStats: false,
   showClock: false,
@@ -128,3 +129,11 @@ export const debouncedSave = debounce<NewTab.State>((data: NewTab.State) => {
     window.localStorage.setItem(keyName, JSON.stringify(dataToSave))
   }
 }, 50)
+
+export const isDefaultTopSitesApplied = (): boolean => {
+  return window.localStorage.getItem(defaultTopSitesAppliedKeyName) === 'set'
+}
+
+export const setDefaultTopSitesApplied = () => {
+  window.localStorage.setItem(defaultTopSitesAppliedKeyName, 'set')
+}

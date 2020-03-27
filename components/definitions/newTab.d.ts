@@ -13,6 +13,7 @@ declare namespace NewTab {
   }
 
   export interface BrandedWallpaper {
+    isSponsored: boolean
     wallpaperImageUrl: string
     logo: BrandedWallpaperLogo
   }
@@ -75,7 +76,7 @@ declare namespace NewTab {
   export interface EphemeralState {
     initialDataLoaded: boolean
     textDirection: string
-    featureFlagBraveNTPBrandedWallpaper: boolean
+    featureFlagBraveNTPSponsoredImagesWallpaper: boolean
     isIncognito: boolean
     useAlternativePrivateSearchEngine: boolean
     isTor: boolean
