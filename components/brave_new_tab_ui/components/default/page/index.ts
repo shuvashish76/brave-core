@@ -258,6 +258,8 @@ export const Navigation = styled<{}, 'nav'>('nav')`
   align-self: flex-end;
   display: flex;
   justify-content: flex-end;
+  height: 40px;
+  align-items: center;
 `
 
 interface IconButtonProps {
@@ -265,10 +267,10 @@ interface IconButtonProps {
 }
 
 export const IconLink = styled<{}, 'a'>('a')`
-  display: flex;
+  display: block;
   width: 24px;
   height: 24px;
-  margin: 12px;
+  margin: 8px;
   cursor: pointer;
   color: #ffffff;
   opacity: 0.7;
@@ -279,6 +281,15 @@ export const IconLink = styled<{}, 'a'>('a')`
   }
 `
 
+export const IconButtonSideText = styled<{}, 'label'>('label')`
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  margin-right: 24px;
+  color: #ffffff;
+  cursor: pointer;
+`
+
 export const IconButton = styled<IconButtonProps, 'button'>('button')`
   pointer-events: ${p => p.clickDisabled && 'none'};
   display: flex;
@@ -286,7 +297,7 @@ export const IconButton = styled<IconButtonProps, 'button'>('button')`
   height: 24px;
   padding: 0;
   border: none;
-  margin: 12px;
+  margin: 0 12px;
   cursor: pointer;
   color: #ffffff;
   background-color: transparent;
