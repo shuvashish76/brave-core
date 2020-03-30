@@ -286,7 +286,7 @@ export const IconButton = styled<IconButtonProps, 'button'>('button')`
   height: 24px;
   padding: 0;
   border: none;
-  margin: 12px;
+  margin: 7px;
   cursor: pointer;
   color: #ffffff;
   background-color: transparent;

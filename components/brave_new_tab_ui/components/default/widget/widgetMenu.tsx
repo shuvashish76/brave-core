@@ -7,7 +7,9 @@ import * as React from 'react'
 
 import { StyledWidgetMenuContainer, StyledWidgetMenu, StyledWidgetButton, StyledWidgetIcon, StyledSpan } from './styles'
 import { IconButton } from '../../default'
-import { CaratCircleODownIcon, CloseStrokeIcon } from 'brave-ui/components/icons'
+import EllipsisIcon from './assets/ellipsis'
+import HideIcon from './assets/hide'
+import LearnMoreIcon from './assets/learn-more'
 import { getLocale } from '../../../../common/locale'
 
 interface Props {
@@ -17,6 +19,8 @@ interface Props {
   toggleWidgetHover: () => void
   widgetMenuPersist: boolean
   unpersistWidgetHover: () => void
+  widgetTitle?: string
+  onLearnMore?: () => void
 }
 
 interface State {
@@ -64,15 +68,17 @@ export default class WidgetMenu extends React.PureComponent<Props, State> {
   }
 
   render () {
-    const { menuPosition, textDirection, widgetMenuPersist } = this.props
+    const { menuPosition, textDirection, widgetMenuPersist, widgetTitle, onLearnMore } = this.props
     const { showMenu } = this.state
+    const hideString = widgetTitle ? `${getLocale('hide')} ${widgetTitle}` : getLocale('hide')
+
     return (
       <StyledWidgetMenuContainer
         menuPosition={menuPosition}
         innerRef={this.settingsMenuRef}
         widgetMenuPersist={widgetMenuPersist}
       >
-        <IconButton onClick={this.toggleMenu}><CaratCircleODownIcon/></IconButton>
+        <IconButton onClick={this.toggleMenu}><EllipsisIcon/></IconButton>
         {showMenu && <StyledWidgetMenu
           textDirection={textDirection}
           menuPosition={menuPosition}
@@ -80,9 +86,19 @@ export default class WidgetMenu extends React.PureComponent<Props, State> {
           <StyledWidgetButton
             onClick={this.unmountWidget}
           >
-            <StyledWidgetIcon><CloseStrokeIcon/></StyledWidgetIcon>
-            <StyledSpan>{getLocale('hide')}</StyledSpan>
+            <StyledWidgetIcon><HideIcon/></StyledWidgetIcon>
+            <StyledSpan>{hideString}</StyledSpan>
           </StyledWidgetButton>
+          {
+            onLearnMore
+            ? <StyledWidgetButton
+                onClick={onLearnMore}
+            >
+              <StyledWidgetIcon><LearnMoreIcon/></StyledWidgetIcon>
+              <StyledSpan>{`${getLocale('learnMore')}`}</StyledSpan>
+            </StyledWidgetButton>
+            : null
+          }
         </StyledWidgetMenu>}
       </StyledWidgetMenuContainer>
     )
