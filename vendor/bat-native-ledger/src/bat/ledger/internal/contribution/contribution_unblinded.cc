@@ -231,6 +231,10 @@ void Unblinded::PrepareTokens(
     return;
   }
 
+  // add STEP_RESERVE
+
+  // TODO(https://github.com/brave/brave-browser/issues/8887):
+  // we should reserve this tokens
   PreparePublishers(token_list, std::move(contribution));
 }
 
@@ -263,6 +267,7 @@ void Unblinded::PreparePublishers(
     return;
   }
 
+  // add STEP_RESERVE
   ProcessTokens(contribution->contribution_id);
 }
 
@@ -308,10 +313,14 @@ void Unblinded::OnPrepareAutoContribution(
     return;
   }
 
+  // add STEP_RESERVE
   ProcessTokens(contribution_id);
 }
 
 void Unblinded::ProcessTokens(const std::string& contribution_id) {
+  // TODO(https://github.com/brave/brave-browser/issues/8887):
+  // here we should fetch reserved tokens so that in OnProcessTokens
+  // no additional computing is needed
   GetContributionInfoAndUnblindedTokens(
       contribution_id,
       std::bind(&Unblinded::OnProcessTokens,
@@ -368,8 +377,6 @@ void Unblinded::OnProcessTokens(
     credentials_->RedeemTokens(redeem, callback);
     return;
   }
-
-  ContributionCompleted(ledger::Result::LEDGER_OK, std::move(contribution));
 }
 
 void Unblinded::TokenProcessed(
