@@ -44,6 +44,7 @@ bool IsWhitelistedFingerprintingException(const GURL& firstPartyOrigin,
   // protections are being reworked to need less exceptions.
   static const std::vector<URLPattern> embed_exceptions = {
     URLPattern(URLPattern::SCHEME_ALL, "https://public.tableau.com/*"),
+    URLPattern(URLPattern::SCHEME_ALL, "https://www.arcgis.com/*"),
   };
   for (const auto exception : embed_exceptions) {
     if (exception.MatchesURL(subresourceUrl)) {
@@ -70,12 +71,6 @@ bool IsWhitelistedFingerprintingException(const GURL& firstPartyOrigin,
       URLPattern(URLPattern::SCHEME_ALL, "https://*.1password.com/*"),
       std::vector<URLPattern>({URLPattern(URLPattern::SCHEME_ALL,
             "https://map.1passwordservices.com/*")})
-    },
-    {
-      URLPattern(URLPattern::SCHEME_ALL, "https://coronavirus.jhu.edu/*"),
-      std::vector<URLPattern>({
-        URLPattern(URLPattern::SCHEME_ALL, "https://www.arcgis.com/*"),
-      })
     },
   };
   for (const auto whitelist : whitelist_patterns) {
